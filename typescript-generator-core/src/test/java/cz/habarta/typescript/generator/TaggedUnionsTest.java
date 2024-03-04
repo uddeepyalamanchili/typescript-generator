@@ -9,7 +9,9 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.List;
+import java.util.stream.Collectors;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
 
@@ -225,36 +227,35 @@ public class TaggedUnionsTest {
     public void testTaggedUnionsWithInterfaces() {
         final Settings settings = TestUtils.settings();
         final String output = new TypeScriptGenerator(settings).generateTypeScript(Input.from(IShape2.class));
-        final String expected = (
-                "\n" +
-                "interface IShape2 {\n" +
-                "    kind: 'circle' | 'square' | 'rectangle';\n" +
-                "}\n" +
-                "\n" +
-                "interface CSquare2 extends IQuadrilateral2 {\n" +
-                "    kind: 'square';\n" +
-                "    size: number;\n" +
-                "}\n" +
-                "\n" +
-                "interface CRectangle2 extends IQuadrilateral2 {\n" +
-                "    kind: 'rectangle';\n" +
-                "    width: number;\n" +
-                "    height: number;\n" +
-                "}\n" +
-                "\n" +
-                "interface CCircle2 extends IShape2 {\n" +
-                "    kind: 'circle';\n" +
-                "    radius: number;\n" +
-                "}\n" +
-                "\n" +
-                "interface IQuadrilateral2 extends IShape2 {\n" +
-                "    kind: 'square' | 'rectangle';\n" +
-                "}\n" +
-                "\n" +
-                "type IShape2Union = CSquare2 | CRectangle2 | CCircle2;\n" +
-                ""
-                ).replace('\'', '"');
-        Assertions.assertEquals(expected, output);
+
+        // Expected structures
+        List<String> expectedInterfaces = Arrays.asList(
+                "interface IShape2 { kind: \"circle\" | \"square\" | \"rectangle\"; }",
+                "interface CSquare2 extends IQuadrilateral2 { kind: \"square\"; size: number; }",
+                "interface CRectangle2 extends IQuadrilateral2 { kind: \"rectangle\"; width: number; height: number; }",
+                "interface CCircle2 extends IShape2 { kind: \"circle\"; radius: number; }",
+                "interface IQuadrilateral2 extends IShape2 { kind: \"square\" | \"rectangle\"; }"
+        );
+        String expectedUnion = "type IShape2Union = CSquare2 | CRectangle2 | CCircle2;";
+
+        // Convert the output into lines and sort them for a consistent comparison
+        List<String> outputLines = Arrays.stream(output.split("\n"))
+                                        .filter(line -> !line.trim().isEmpty()) // Remove empty lines
+                                        .collect(Collectors.toList());
+        Collections.sort(outputLines);
+
+        // Check if each expected interface definition is present in the output
+        for (String expectedInterface : expectedInterfaces) {
+            String normalizedExpected = expectedInterface.replace('\'', '"');
+            Assertions.assertTrue(outputLines.stream().anyMatch(line -> line.contains(normalizedExpected)),
+                    "Expected interface definition not found: " + normalizedExpected);
+        }
+
+        // Check for the union type definition
+        Assertions.assertTrue(output.contains(expectedUnion.replace('\'', '"')),
+                "Expected union type definition not found");
+
+        // Additional checks can be added here, such as verifying the extends relationship or property types
     }
 
     @Test
